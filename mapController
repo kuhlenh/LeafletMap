@@ -1,0 +1,204 @@
+public with sharing class mapController{
+
+ public User usr = new User();
+ public List<Account> acc{get; set;}
+ public List<Account> errors = new List<Account>();
+ public Map<String, List<Account>> mapAccount = new Map<String, List<Account>>();
+ public Map<String, String> names = new Map<String, String>();
+ public Map<String, String> sMap = new Map<String, String>();
+ 
+    public mapController()
+    {   
+        //volition_old data in Billing*, volition_new data in State_P, etc.
+        acc= [SELECT Id, BillingCity, BillingState, City__c,Lat__Latitude__s,Lat__Longitude__s,Name, OwnerId ,State_Province__c,Status_Volition_Capital__c, Type, Status__c 
+            FROM Account 
+            WHERE ((Status_Volition_Capital__c='A' 
+            OR Status_Volition_Capital__c='Tracking') 
+            AND Type='Deal Prospect')
+            OR (Status_Volition_Capital__c='' AND Status__c='A' 
+            AND Type='Deal Prospect')
+            ];
+            
+        //convert states to state codes
+        sMap.put('Alabama','AL');
+        sMap.put('Alaska','AK');
+        sMap.put('Alberta','AB');
+        sMap.put('American Samoa','AS');
+        sMap.put('Arizona','AZ');
+        sMap.put('Arkansas','AR');
+        sMap.put('Armed Forces (AE)','AE');
+        sMap.put('Armed Forces Americas','AA');
+        sMap.put('Armed Forces Pacific','AP');
+        sMap.put('British Columbia','BC');
+        sMap.put('California','CA');
+        sMap.put('Colorado','CO');
+        sMap.put('Connecticut','CT');
+        sMap.put('Delaware','DE');
+        sMap.put('District Of Columbia','DC');
+        sMap.put('Florida','FL');
+        sMap.put('Georgia','GA');
+        sMap.put('Guam','GU');
+        sMap.put('Hawaii','HI');
+        sMap.put('Idaho','ID');
+        sMap.put('Illinois','IL');
+        sMap.put('Indiana','IN');
+        sMap.put('Iowa','IA');
+        sMap.put('Kansas','KS');
+        sMap.put('Kentucky','KY');
+        sMap.put('Louisiana','LA');
+        sMap.put('Maine','ME');
+        sMap.put('Manitoba','MB');
+        sMap.put('Maryland','MD');
+        sMap.put('Massachusetts','MA');
+        sMap.put('Michigan','MI');
+        sMap.put('Minnesota','MN');
+        sMap.put('Mississippi','MS');
+        sMap.put('Missouri','MO');
+        sMap.put('Montana','MT');
+        sMap.put('Nebraska','NE');
+        sMap.put('Nevada','NV');
+        sMap.put('New Brunswick','NB');
+        sMap.put('New Hampshire','NH');
+        sMap.put('New Jersey','NJ');
+        sMap.put('New Mexico','NM');
+        sMap.put('New York','NY');
+        sMap.put('Newfoundland','NF');
+        sMap.put('North Carolina','NC');
+        sMap.put('North Dakota','ND');
+        sMap.put('Northwest Territories','NT');
+        sMap.put('Nova Scotia','NS');
+        sMap.put('Nunavut','NU');
+        sMap.put('Ohio','OH');
+        sMap.put('Oklahoma','OK');
+        sMap.put('Ontario','ON');
+        sMap.put('Oregon','OR');
+        sMap.put('Pennsylvania','PA');
+        sMap.put('Prince Edward Island','PE');
+        sMap.put('Puerto Rico','PR');
+        sMap.put('Quebec','PQ');
+        sMap.put('Rhode Island','RI');
+        sMap.put('Saskatchewan','SK');
+        sMap.put('South Carolina','SC');
+        sMap.put('South Dakota','SD');
+        sMap.put('Tennessee','TN');
+        sMap.put('Texas','TX');
+        sMap.put('Utah','UT');
+        sMap.put('Vermont','VT');
+        sMap.put('Virgin Islands','VI');
+        sMap.put('Virginia','VA');
+        sMap.put('Washington','WA');
+        sMap.put('West Virginia','WV');
+        sMap.put('Wisconsin','WI');
+        sMap.put('Wyoming','WY');
+        sMap.put('Yukon Territory','YT');
+              constLoop();
+         
+          
+      }
+  
+  
+  
+    public boolean constLoop(){
+        for (Account c: acc) {
+        
+            //check if data point has all necessary data to plot
+            if(c.City__c == null || c.State_Province__c == null){
+              if(c.BillingCity == null || c.BillingState == null){
+                  errors.add(c);
+              }else{
+                //set city and state
+                String city = String.valueOf(c.BillingCity);
+                String state = String.valueOf(c.BillingState);
+                if(state.length() > 2){
+                  state = sMap.get(state);
+                }
+                Account n = new Account(City__c=c.BillingCity, State_Province__c=state, Id = c.Id,
+                      Status_Volition_Capital__c = c.Status_Volition_Capital__c, OwnerId = c.OwnerId,
+                      Lat__Latitude__s = c.Lat__Latitude__s, Lat__Longitude__s = c.Lat__Longitude__s,
+                      Name = c.Name, Type = c.Type, Status__c = c.Status__c);
+                if(mapAccount.get(city)!=null){
+                      mapAccount.get(city).add(n);
+                }else{
+                       List<Account> a = new List<Account>();
+                       a.add(n);
+                       mapAccount.put(city, a);
+               }
+               
+               //if firm owner is new and not in names, add to names
+               if(names.get(c.OwnerId)==null){
+                        usr = [SELECT FirstName, Id FROM User WHERE Id=:c.OwnerId];
+                        String firstname = usr.FirstName;
+                        String userid = (String) c.OwnerId;
+                        names.put(userid, firstname);
+                }
+              }
+
+            }else{
+            
+               String city = String.valueOf(c.City__c);
+               if(mapAccount.get(city)!=null){
+                  mapAccount.get(city).add(c);
+               }else{
+                   List<Account> a = new List<Account>();
+                   a.add(c);
+                   mapAccount.put(city, a);
+               }
+                  
+              //get names of firm members 
+                if(names.get(c.OwnerId)==null){
+                  usr = [SELECT FirstName, Id FROM User WHERE Id=:c.OwnerId];
+                  String firstname = usr.FirstName;
+                  String userid = (String) c.OwnerId;
+                  names.put(userid, firstname);
+                }
+                   
+                   
+            }
+
+        }
+        return true;
+    }
+    
+  
+  public User getUsr() {
+        return usr;
+        
+  }
+    
+  public List<Account> getErrors() {
+        return errors;
+  }
+  
+  //get all "Accounts" with city data
+  public Map<String, List<Account>> getMapAccount(){
+        return mapAccount;
+  }
+   
+  public Map<String, String> getNames(){
+        return names;
+  }
+   
+  public Map<String, String> getSMap(){
+        return sMap;
+  }
+  
+
+  //remote function to update new cities with Lng/Lat to SF db
+  @RemoteAction
+  public static void setLatLong (Decimal lat, Decimal lon, String id) {
+      mapController m = new mapController();
+      Account a2 = [select Id, Lat__Latitude__s, Lat__Longitude__s, BillingState from Account where Id=:id];
+      a2.Lat__Latitude__s = lat;
+      a2.Lat__Longitude__s= lon;
+      if(a2.BillingState != null){
+        if(a2.BillingState != m.sMap.get(a2.BillingState) && m.sMap.get(a2.BillingState) != null){
+          a2.BillingState = m.sMap.get(a2.BillingState);
+        }
+          
+      }
+      update a2;
+  }
+    
+    
+
+}
